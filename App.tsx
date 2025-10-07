@@ -10,7 +10,6 @@ const initialSteps: ProcessStep[] = [
   { name: '上傳 APK', status: ProcessStatus.UPLOADING, duration: 1500 },
   { name: '解包 APK', status: ProcessStatus.UNPACKING, duration: 1000 },
   { name: '加密 DEX', status: ProcessStatus.ENCRYPTING_DEX, duration: 2000 },
-  { name: '注入 Stub', status: ProcessStatus.INJECTING_STUB, duration: 1500 },
   { name: '對齊封裝', status: ProcessStatus.ALIGNING, duration: 2000 },
   { name: '進行簽章', status: ProcessStatus.SIGNING, duration: 2500 },
 ];
