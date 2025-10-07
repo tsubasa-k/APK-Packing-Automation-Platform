@@ -102,7 +102,7 @@ const App: React.FC = () => {
               </div>
               <h2 className="text-2xl font-semibold text-green-800">處理完成！</h2>
               <p className="text-slate-600 max-w-md">
-                您的 APK <span className="font-medium text-slate-800">{apkFile?.name}</span> 已成功加殼保護、對齊與簽章。
+                 APK <span className="font-medium text-slate-800">{apkFile?.name}</span> 已成功加殼保護、對齊與簽章。
               </p>
               <div className="flex space-x-4 pt-4">
                 <button 
