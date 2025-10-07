@@ -79,7 +79,6 @@ const App: React.FC = () => {
       <div className="w-full max-w-4xl bg-white rounded-xl shadow-lg p-8 space-y-8">
         <header className="text-center">
           <h1 className="text-3xl font-bold text-slate-800">APK 加殼自動化平台</h1>
-          <p className="text-slate-500 mt-2">一鍵自動化，進行應用程式保護流程。</p>
         </header>
 
         {processState !== ProcessStatus.IDLE && (
