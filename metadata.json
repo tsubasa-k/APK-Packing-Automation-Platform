@@ -1,0 +1,5 @@
+{
+  "name": "Copy of APK Hardening Automation Platform",
+  "description": "A web application to automate the APK protection, alignment, and signing process, inspired by CI/CD principles for mobile app development.",
+  "requestFramePermissions": []
+}
