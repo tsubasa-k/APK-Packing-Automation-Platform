@@ -1,4 +1,4 @@
-// App.tsx
+//App.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { ProcessStatus, ProcessStep } from './types';
 import FileUpload from './components/FileUpload';
@@ -7,135 +7,134 @@ import StatusIndicator from './components/StatusIndicator';
 import { CheckIcon } from './components/icons/CheckIcon';
 import { DownloadIcon } from './components/icons/DownloadIcon';
 
-// 假設後端運行在 http://localhost:5000
-const API_BASE_URL = 'http://localhost:5000';
+// 狀態與後端 API 的 'status' 字串對應
+const statusMapping: { [key: string]: ProcessStatus } = {
+  uploading: ProcessStatus.UPLOADING,
+  protecting: ProcessStatus.PROTECTING,
+  aligning: ProcessStatus.ALIGNING, // 假設後端也會回報這些狀態
+  signing: ProcessStatus.SIGNING,   // 假設後端也會回報這些狀態
+  complete: ProcessStatus.COMPLETE,
+  error: ProcessStatus.ERROR,
+};
 
 const initialSteps: ProcessStep[] = [
-  { name: '上傳 APK', status: ProcessStatus.UPLOADING },
-  { name: '加殼保護', status: ProcessStatus.PROTECTING },
-  { name: '對齊封裝', status: ProcessStatus.ALIGNING },
-  { name: '進行簽章', status: ProcessStatus.SIGNING },
+  // 我們可以保留這個結構來驅動 UI，但實際進度由後端決定
+  { name: '上傳 APK', status: ProcessStatus.UPLOADING, duration: 0 },
+  { name: '加殼保護', status: ProcessStatus.PROTECTING, duration: 0 },
+  { name: '對齊封裝', status: ProcessStatus.ALIGNING, duration: 0 },
+  { name: '進行簽章', status: ProcessStatus.SIGNING, duration: 0 },
 ];
 
 const App: React.FC = () => {
   const [apkFile, setApkFile] = useState<File | null>(null);
-  const [protectedApkUrl, setProtectedApkUrl] = useState<string | null>(null); // 新增狀態：已保護APK的下載URL
-  const [protectedApkName, setProtectedApkName] = useState<string | null>(null); // 新增狀態：已保護APK的檔案名
+  const [taskId, setTaskId] = useState<string | null>(null);
   const [processState, setProcessState] = useState<ProcessStatus>(ProcessStatus.IDLE);
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(-1);
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [protectedFileName, setProtectedFileName] = useState<string>('');
 
   const resetState = useCallback(() => {
     setApkFile(null);
-    setProtectedApkUrl(null);
-    setProtectedApkName(null);
+    setTaskId(null);
     setProcessState(ProcessStatus.IDLE);
     setCurrentStepIndex(-1);
     setErrorMessage('');
+    setProtectedFileName('');
   }, []);
-  
+
   const handleFileSelect = (file: File) => {
     if (file && file.name.endsWith('.apk')) {
       setApkFile(file);
       setErrorMessage('');
-      setProcessState(ProcessStatus.UPLOADING); // 檔案選擇後立即進入上傳狀態
-      setCurrentStepIndex(0); // 開始第一個步驟
+      // 選擇檔案後立即開始上傳
+      handleUpload(file);
     } else {
       setErrorMessage('檔案類型無效，請上傳 .apk 檔案。');
     }
   };
+  
+  const handleUpload = async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
 
-  const uploadAndProcessApk = useCallback(async () => {
-    if (!apkFile) return;
-
-    setCurrentStepIndex(0); // 上傳步驟
     setProcessState(ProcessStatus.UPLOADING);
-    setErrorMessage('');
+    setCurrentStepIndex(0); // 進入第一個步驟 '上傳'
 
     try {
-      const formData = new FormData();
-      formData.append('apkFile', apkFile);
-
-      const response = await fetch(`${API_BASE_URL}/api/protect-apk`, {
+      // 所有 API 請求都發送到相對路徑 /api/，這將被 Cloudflare Worker 攔截
+      const response = await fetch('/api/upload', {
         method: 'POST',
         body: formData,
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: '伺服器錯誤' }));
-        throw new Error(errorData.error || `HTTP 錯誤! 狀態: ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(errorData.detail || '上傳失敗。');
       }
 
-      // 假設後端直接返回檔案
-      const blob = await response.blob();
-      const contentDisposition = response.headers.get('Content-Disposition');
-      let filename = 'protected.apk'; // 預設檔名
-      if (contentDisposition) {
-        const filenameMatch = contentDisposition.match(/filename="([^"]+)"/);
-        if (filenameMatch && filenameMatch[1]) {
-          filename = filenameMatch[1];
-        }
-      }
+      const result = await response.json();
+      setTaskId(result.task_id); // 儲存 task_id 以便後續查詢
 
-      setProtectedApkUrl(URL.createObjectURL(blob));
-      setProtectedApkName(filename);
-
-      // 模擬步驟進度，因為後端是同步處理，前端無法知道中間步驟
-      // 可以在後端腳本中增加回調或 Websocket 來提供實時進度
-      // 目前，我們簡單地假設所有步驟都已完成
-      setCurrentStepIndex(initialSteps.length); // 直接跳到最後一個步驟之後
-      setProcessState(ProcessStatus.COMPLETE);
-
-    } catch (error: any) {
-      console.error('APK 處理失敗:', error);
-      setErrorMessage(`APK 處理失敗: ${error.message}`);
+    } catch (error) {
       setProcessState(ProcessStatus.ERROR);
-      setCurrentStepIndex(-1); // 錯誤時重置步驟指示
-    }
-  }, [apkFile]);
-
-  const handleDownload = () => {
-    if (protectedApkUrl && protectedApkName) {
-      const link = document.createElement('a');
-      link.href = protectedAppUrl;
-      link.setAttribute('download', protectedApkName);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(protectedApkUrl);
-      setProtectedApkUrl(null); // 清理 URL 對象
+      setErrorMessage(error instanceof Error ? error.message : '未知錯誤');
     }
   };
-  
-  useEffect(() => {
-    // 當 apkFile 準備好且處於 IDLE 狀態時，觸發上傳和處理
-    if (apkFile && processState === ProcessStatus.UPLOADING) { // 這裡確保只在上傳狀態觸發
-      uploadAndProcessApk();
-    }
-  }, [apkFile, processState, uploadAndProcessApk]);
 
-  // 模擬進度條 (因為後端目前是同步的，所以前端的進度條會快速跳過)
+  const handleDownload = () => {
+    if (!taskId) return;
+    // 直接建立一個指向下載端點的連結
+    const link = document.createElement('a');
+    link.href = `/api/download/${taskId}`;
+    link.setAttribute('download', protectedFileName);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // 使用 useEffect 輪詢任務狀態
   useEffect(() => {
-    if (processState !== ProcessStatus.IDLE && 
-        processState !== ProcessStatus.COMPLETE && 
-        processState !== ProcessStatus.ERROR && 
-        currentStepIndex < initialSteps.length) {
-      const timer = setTimeout(() => {
-        // 模擬每個步驟的完成，直到後端返回結果
-        if (processState === ProcessStatus.UPLOADING) {
-          setProcessState(ProcessStatus.PROTECTING);
-          setCurrentStepIndex(1);
-        } else if (processState === ProcessStatus.PROTECTING) {
-          setProcessState(ProcessStatus.ALIGNING);
-          setCurrentStepIndex(2);
-        } else if (processState === ProcessStatus.ALIGNING) {
-          setProcessState(ProcessStatus.SIGNING);
-          setCurrentStepIndex(3);
-        }
-      }, 1000); // 每個步驟模擬 1 秒
-      return () => clearTimeout(timer);
+    if (!taskId || processState === ProcessStatus.COMPLETE || processState === ProcessStatus.ERROR) {
+      return;
     }
-  }, [processState, currentStepIndex]);
+
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/status/${taskId}`);
+        if (!response.ok) {
+           // 如果 404，可能後端還沒準備好，稍後重試
+          if(response.status === 404) return;
+          throw new Error('無法取得處理狀態。');
+        }
+        
+        const data = await response.json();
+        const newStatus = statusMapping[data.status] || ProcessStatus.PROTECTING;
+
+        // 更新 UI 狀態
+        setProcessState(newStatus);
+        
+        const newStepIndex = initialSteps.findIndex(step => step.status === newStatus);
+        if (newStepIndex !== -1) {
+            setCurrentStepIndex(newStepIndex);
+        }
+        
+        if (newStatus === ProcessStatus.COMPLETE) {
+          setProtectedFileName(data.file_name);
+          clearInterval(interval);
+        } else if (newStatus === ProcessStatus.ERROR) {
+          setErrorMessage(data.message);
+          clearInterval(interval);
+        }
+
+      } catch (error) {
+        setProcessState(ProcessStatus.ERROR);
+        setErrorMessage(error instanceof Error ? error.message : '查詢狀態時發生錯誤');
+        clearInterval(interval);
+      }
+    }, 2000); // 每 2 秒查詢一次
+
+    return () => clearInterval(interval); // 元件卸載時清除計時器
+  }, [taskId, processState]);
 
 
   return (
@@ -155,36 +154,22 @@ const App: React.FC = () => {
             <FileUpload onFileSelect={handleFileSelect} errorMessage={errorMessage} />
           )}
 
-          {(processState === ProcessStatus.UPLOADING || 
-             processState === ProcessStatus.PROTECTING ||
-             processState === ProcessStatus.ALIGNING ||
-             processState === ProcessStatus.SIGNING) && (
+          {processState !== ProcessStatus.IDLE && processState !== ProcessStatus.COMPLETE && processState !== ProcessStatus.ERROR && (
             <StatusIndicator status={processState} fileName={apkFile?.name} />
           )}
 
+          {/* 新增錯誤狀態的顯示 */}
           {processState === ProcessStatus.ERROR && (
-            <div className="text-center bg-red-50 border-2 border-dashed border-red-200 rounded-lg p-8 flex flex-col items-center justify-center space-y-4">
-                <div className="bg-red-100 rounded-full p-3">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8 text-red-600">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
-                  </svg>
-                </div>
-                <h2 className="text-2xl font-semibold text-red-800">處理失敗！</h2>
-                <p className="text-slate-600 max-w-md">
-                  您的 APK <span className="font-medium text-slate-800">{apkFile?.name}</span> 處理失敗。
-                </p>
-                {errorMessage && (
-                  <p className="text-red-500 text-sm italic">{errorMessage}</p>
-                )}
-                <div className="pt-4">
-                  <button
-                    onClick={resetState}
-                    className="px-6 py-3 bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-400 transition"
-                  >
-                    重新開始
-                  </button>
-                </div>
-            </div>
+             <div className="text-center bg-red-50 border-2 border-dashed border-red-200 rounded-lg p-8 flex flex-col items-center justify-center space-y-4">
+               <h2 className="text-2xl font-semibold text-red-800">處理失敗</h2>
+               <p className="text-slate-600 max-w-md">{errorMessage}</p>
+               <button
+                  onClick={resetState}
+                  className="px-6 py-3 bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300"
+                >
+                  重新開始
+                </button>
+             </div>
           )}
 
           {processState === ProcessStatus.COMPLETE && (
