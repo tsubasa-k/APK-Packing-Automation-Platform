@@ -94,55 +94,55 @@ const App: React.FC = () => {
 
   // 在 App.tsx 中找到 useEffect hook，並用以下程式碼取代
 
-useEffect(() => {
-    // 如果沒有 task_id 或任務已結束，則不執行任何操作
-    if (!taskId || processState === ProcessStatus.COMPLETE || processState === ProcessStatus.ERROR) {
-      return;
-    }
-
-    const pollStatus = async () => {
-      try {
-        const response = await fetch(`/api/status/${taskId}`);
-        if (!response.ok) {
-          if (response.status === 404) return; // 後端可能尚未準備好，靜默重試
-          throw new Error('無法取得處理狀態。');
-        }
-        
-        const data = await response.json();
-        const newStatus = statusMapping[data.status] || processState; // 如果狀態未知，保持原樣
-
-        // 更新 UI 狀態
-        setProcessState(newStatus);
-        
-        const newStepIndex = initialSteps.findIndex(step => step.status === newStatus);
-        if (newStepIndex !== -1) {
-          setCurrentStepIndex(newStepIndex);
-        }
-
-        // !!! 關鍵修正 !!!
-        // 當收到完成狀態時，先強制將進度條設定到最後一步
-        if (newStatus === ProcessStatus.COMPLETE) {
-          setCurrentStepIndex(initialSteps.length); // 強制設定為最後一步完成的索引
-          setProtectedFileName(data.file_name || '');
-        } else {
-          // 如果尚未完成，則安排下一次輪詢
-          setTimeout(pollStatus, 2000);
-        }
-
-      } catch (error) {
-        setProcessState(ProcessStatus.ERROR);
-        setErrorMessage(error instanceof Error ? error.message : '查詢狀態時發生錯誤');
+  useEffect(() => {
+      // 如果沒有 task_id 或任務已結束，則不執行任何操作
+      if (!taskId || processState === ProcessStatus.COMPLETE || processState === ProcessStatus.ERROR) {
+        return;
       }
-    };
-
-    // 啟動第一次輪詢
-    const timer = setTimeout(pollStatus, 2000);
-
-    // 清理函數：當元件卸載或 task_id 改變時，清除計時器
-    return () => clearTimeout(timer);
-
-// eslint-disable-next-line react-hooks/exhaustive-deps
-}, [taskId, processState]);
+  
+      const pollStatus = async () => {
+        try {
+          const response = await fetch(`/api/status/${taskId}`);
+          if (!response.ok) {
+            if (response.status === 404) return; // 後端可能尚未準備好，靜默重試
+            throw new Error('無法取得處理狀態。');
+          }
+          
+          const data = await response.json();
+          const newStatus = statusMapping[data.status] || processState; // 如果狀態未知，保持原樣
+  
+          // 更新 UI 狀態
+          setProcessState(newStatus);
+          
+          const newStepIndex = initialSteps.findIndex(step => step.status === newStatus);
+          if (newStepIndex !== -1) {
+            setCurrentStepIndex(newStepIndex);
+          }
+  
+          // !!! 關鍵修正 !!!
+          // 當收到完成狀態時，先強制將進度條設定到最後一步
+          if (newStatus === ProcessStatus.COMPLETE) {
+            setCurrentStepIndex(initialSteps.length); // 強制設定為最後一步完成的索引
+            setProtectedFileName(data.file_name || '');
+          } else {
+            // 如果尚未完成，則安排下一次輪詢
+            setTimeout(pollStatus, 2000);
+          }
+  
+        } catch (error) {
+          setProcessState(ProcessStatus.ERROR);
+          setErrorMessage(error instanceof Error ? error.message : '查詢狀態時發生錯誤');
+        }
+      };
+  
+      // 啟動第一次輪詢
+      const timer = setTimeout(pollStatus, 2000);
+  
+      // 清理函數：當元件卸載或 task_id 改變時，清除計時器
+      return () => clearTimeout(timer);
+  
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taskId, processState]);
 
 
   return (
