@@ -1,21 +1,24 @@
 ## Step 0: Preparation
+
+先將前端部署的檔案準備好，在Cloudflare Pages上Create application，選擇Github上的repository，Create和deploy
+
 ### 階段一：端到端測試 (End-to-End Testing)
 
-在將後端部署到真實伺服器之前，我們需要在您的本地開發環境中確認整個流程是通的。
+在將後端部署到真實伺服器之前，我們需要在本地開發環境中確認整個流程是通的。
 
 1. 在本機執行後端服務：
 
-打開您專案的終端機，進入存放 main.py (FastAPI 服務) 的目錄。
+打開專案的終端機，進入存放 main.py (FastAPI 服務) 的目錄。
 
 執行命令 uvicorn main:app --host 0.0.0.0 --port 8000。
 
---host 0.0.0.0 確保它可以從您的網路中被訪問，而不僅僅是本機。
+--host 0.0.0.0 確保它可以從本機的網路中被訪問，而不僅僅是本機。
 
 2. 設定前端 API 位址：
 
-在您的 React 專案 (App.tsx) 中，所有 fetch 請求的路徑都是相對路徑 (例如 /api/upload)。當您在本機開發時，這些請求會發送到 http://localhost:3000/api/upload，但您的後端是跑在 8000 port。
+在repo上的 React 專案 (App.tsx) 中，所有 fetch 請求的路徑都是相對路徑 (例如 /api/upload)。當在本機開發時，這些請求會發送到 http://localhost:3000/api/upload，但本機的後端是跑在 8000 port。
 
-解決方法：在您的 vite.config.ts 中設定代理 (proxy)，讓 Vite 開發伺服器自動將 /api 的請求轉發到您的後端。
+解決方法：在repo上的 vite.config.ts 中設定代理 (proxy)，讓 Vite 開發伺服器自動將 /api 的請求轉發到本機的後端。
 
 ### On Local
 1. 建立一個名為 apk_env 的新環境
@@ -32,7 +35,7 @@ PowerShell
 
 conda activate apk_env
 ```
-執行後，您會看到終端機最前面的提示符從 (base) 變成了 (apk_env)。這表示您已成功進入這個乾淨的空間。
+執行後，會看到終端機最前面的提示符從 (base) 變成了 (apk_env)。這表示已成功進入這個乾淨的空間。
 
 3. 在新環境中安裝套件
 現在，我們在這個全新的環境中，安裝唯一需要的 pycryptodome 套件：
@@ -108,7 +111,7 @@ def run_apk_hardening_script(input_path: Path, output_path: Path, task_id: str):
         )
 
     except subprocess.CalledProcessError as e:
-        # 真正的錯誤訊息會直接顯示在您執行 uvicorn 的終端機視窗中
+        # 真正的錯誤訊息會直接顯示在本機執行 uvicorn 的終端機視窗中
         print("\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         print("!!! Subprocess 執行失敗，請檢查上方終端機的輸出尋找真實的錯誤訊息 !!!")
         print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n")
@@ -441,7 +444,7 @@ cloudflared:
 
 ![image](https://hackmd.io/_uploads/ByaSWbN6xx.png)
 
-執行這個指令後，它會直接連接到 Cloudflare 並立即在您的終端機上顯示一個公開的 ...trycloudflare.com 網址。看到這個網址出現，就代表通道已經成功建立並運行了！
+執行這個指令後，它會直接連接到 Cloudflare 並立即在本機的終端機上顯示一個公開的 ...trycloudflare.com 網址。看到這個網址出現，就代表通道已經成功建立並運行了！
 
 不要關閉這個正在運行 `cloudflared tunnel` 的終端機視窗
 
@@ -508,7 +511,7 @@ export async function onRequest(context) {
   //    這個物件會複製原始請求的方法 (POST)、標頭 (headers) 和內容主體 (body)
   const backendRequest = new Request(backendRequestUrl, context.request);
 
-  // 4. 執行 fetch 請求到後端 (您的 Tunnel)，並將後端的回應直接回傳給瀏覽器
+  // 4. 執行 fetch 請求到後端 (本機的 Tunnel)，並將後端的回應直接回傳給瀏覽器
   try {
     console.log(`Forwarding request to: ${backendRequestUrl}`); // 增加日誌以便偵錯
     return await fetch(backendRequest);
@@ -545,24 +548,24 @@ A: 這個新架構移除了「Service Binding」這個中間層。現在的流�
 此平台是一個典型的現代「分離式架構」網頁應用 (Decoupled Architecture)。這意味著前端 (使用者介面) 和後端 (核心邏輯) 是兩個獨立的實體，它們透過網路 API 進行溝通。
 
 
-1. 前端 (Frontend) - 您的 React 應用程式
+1. 前端 (Frontend) - repo的 React 應用程式
 這是使用者唯一會直接互動的部分。它負責提供上傳介面、顯示處理進度，並提供最終的下載按鈕。
 
 - 部署位置: Cloudflare Pages。
 
 為什麼選擇這裡?:
 - 高效能: Cloudflare Pages 專為託管靜態網站（如 React 專案建置後的 HTML/CSS/JS 檔案）而設計，速度極快。
-- 自動化 (CI/CD): 當您將新的程式碼推送到 GitHub 時，Cloudflare Pages 會自動重新建置並部署您的網站，無需手動操作。
+- 自動化 (CI/CD): 當我們將新的程式碼推送到 GitHub 時，Cloudflare Pages 會自動重新建置並部署網站，無需手動操作。
 - 免費與安全: 提供免費的託管、HTTPS 加密和 DDoS 防護。
 
-2. 後端 (Backend) - 您的 FastAPI 伺服器
+2. 後端 (Backend) - 本機的 FastAPI 伺服器
 這是專案的大腦和動力核心。它負責接收上傳的 APK 檔案，並執行精心打造的 pack_apk.py 腳本來進行反編譯、加密、重建和簽章等所有繁重工作。
 
 - 部署位置: 一台獨立的伺服器 (例如雲端主機 VPS 或 PaaS 平台)。
 
 為什麼必須是獨立伺服器?:
-- 執行環境: 您的 pack_apk.py 腳本需要一個完整的作業系統環境，裡面必須安裝 Java、Android SDK Build-Tools (zipalign, apksigner) 等重量級工具。
-- 限制: Cloudflare Pages 或 Workers 的環境非常輕量且受限，它們無法執行這類需要大量外部依賴和本地檔案系統操作的複雜腳本。因此，後端必須部署在一個您可以完全控制的獨立伺服器上。
+- 執行環境: 本機的 pack_apk.py 腳本需要一個完整的作業系統環境，裡面必須安裝 Java、Android SDK Build-Tools (zipalign, apksigner) 等重量級工具。
+- 限制: Cloudflare Pages 或 Workers 的環境非常輕量且受限，它們無法執行這類需要大量外部依賴和本地檔案系統操作的複雜腳本。因此，後端必須部署在一個我們可以完全控制的獨立伺服器上。
 
 3. 「橋樑」- 連接前端與後端的關鍵
 這是整個架構中最精妙、也是我們花費最多時間偵錯的部分。因為前端在公開網路上，而後端在另一台伺服器上，我們需要一個安全可靠的「橋樑」來連接它們。
@@ -583,13 +586,13 @@ A: 這個新架構移除了「Service Binding」這個中間層。現在的流�
 角色: 這是「交通警察」手上的目標地址。Pages Function 會將所有攔截到的請求全部發送到這個地址。
 
 它有兩種模式:
-- 測試模式 (我們目前的設定): 使用 Cloudflare Tunnel (...trycloudflare.com)。這個 Tunnel 就像一條從 Cloudflare 網路直通您本地電腦的加密專線，讓您可以在本地進行完整的線上測試。
+- 測試模式 (我們目前的設定): 使用 Cloudflare Tunnel (...trycloudflare.com)。這個 Tunnel 就像一條從 Cloudflare 網路直通本地電腦的加密專線，讓我們可以在本地進行完整的線上測試。
 
-- 正式生產模式: 使用您購買的雲端主機的公開 IP 地址或網域名稱 (例如 http://203.0.113.55:8000)。這將指向一台 24/7 全天候運行的穩定伺服器。
+- 正式生產模式: 使用購買的雲端主機的公開 IP 地址或網域名稱 (例如 http://203.0.113.55:8000)。這將指向一台 24/7 全天候運行的穩定伺服器。
 
 ### 完整的使用者請求流程
 完整的使用者操作:
-1. 上傳: 使用者在您的 ...pages.dev 網站上選擇 demoapp.apk 並上傳。瀏覽器向 https://...pages.dev/api/upload 發送一個 POST 請求。
+1. 上傳: 使用者在我們的 ...pages.dev 網站上選擇 demoapp.apk 並上傳。瀏覽器向 https://...pages.dev/api/upload 發送一個 POST 請求。
 
 2. 攔截與轉發:
 - Cloudflare Pages 收到請求。functions/api/[[path]].js 檔案被觸發。
@@ -598,7 +601,7 @@ A: 這個新架構移除了「Service Binding」這個中間層。現在的流�
 
 3. 通過通道:
 - 請求到達 Cloudflare Tunnel 的公開網址。
-- cloudflared.exe 在您的電腦上接收到這個請求，並將其轉發到 http://localhost:8000/api/upload。
+- cloudflared.exe 在本機上接收到這個請求，並將其轉發到 http://localhost:8000/api/upload。
 
 4. 後端處理:
 - 本地運行的 FastAPI 伺服器收到請求。
@@ -767,7 +770,7 @@ def main(input_apk, output_apk, task_id):
         
         # --- 原有流程開始 ---
         print("\n== Step 1 & 2: 解壓、加密、修改 (加殼保護) ==")
-        # ... 後續流程與您之前的成功版本完全相同 ...
+
         with zipfile.ZipFile(input_apk, 'r') as zip_ref: zip_ref.extractall(class_dir)
         run_cmd([APKTOOL_PATH, "d", input_apk, "-o", build_dir, "-f"])
         
@@ -870,7 +873,7 @@ ANDROID_JAR_PATH = r"C:\Users\user\AppData\Local\Android\Sdk\platforms\android-3
 D8_PATH = r"C:\Users\user\AppData\Local\Android\Sdk\build-tools\35.0.0\d8.bat"
 
 # --- 新增：ProGuard 混淆工具路徑 ---
-# *** 請將此路徑修改為您電腦上 proguard.jar 的實際位置 ***
+# *** 請將此路徑修改為電腦上 proguard.jar 的實際位置 ***
 PROGUARD_JAR_PATH = r"C:\Users\user\proguard-7.8.0\lib\proguard.jar"
 # ProGuard 規則檔案的路徑
 PROGUARD_CONFIG_PATH = "proguard-rules.pro"
