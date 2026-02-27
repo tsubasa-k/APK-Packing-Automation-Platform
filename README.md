@@ -391,18 +391,20 @@ if __name__ == "__main__":
 ```
 npm run dev
 ```
-![image](https://hackmd.io/_uploads/H1lq_6XTlg.png)
+<img width="1393" height="496" alt="image" src="https://github.com/user-attachments/assets/408fef4c-b76b-4a15-b722-e6638abc7f35" />
 
 ```
 conda activate apk_env
 (apk_env) PS C:\Users\user> uvicorn main:app --host 0.0.0.0 --port 8000
 ```
-![image](https://hackmd.io/_uploads/BJaXLaQ6ge.png)
+<img width="1675" height="667" alt="image" src="https://github.com/user-attachments/assets/f0aef6d4-5391-4471-a5b9-382b5e38799c" />
 
 
-![image](https://hackmd.io/_uploads/rkwTO6m6ee.png)
+<img width="1702" height="805" alt="image" src="https://github.com/user-attachments/assets/99d4d237-d151-4c71-9279-dd770a59dbc3" />
 
-![image](https://hackmd.io/_uploads/S1TxfJNpxx.png)
+
+<img width="1077" height="913" alt="image" src="https://github.com/user-attachments/assets/0309c800-be67-488b-a27b-52a6cf7e9872" />
+
 
 ### 階段二：
 
@@ -440,9 +442,8 @@ cloudflared:
 ```
 (apk_env) PS C:\Users\user> cloudflared tunnel --url http://localhost:8000
 ```
-![image](https://hackmd.io/_uploads/By5XWbV6ll.png)
+<img width="1705" height="505" alt="image" src="https://github.com/user-attachments/assets/49a6ba34-c28a-42eb-ba37-0a97e77a92e1" />
 
-![image](https://hackmd.io/_uploads/ByaSWbN6xx.png)
 
 執行這個指令後，它會直接連接到 Cloudflare 並立即在本機的終端機上顯示一個公開的 ...trycloudflare.com 網址。看到這個網址出現，就代表通道已經成功建立並運行了！
 
@@ -465,9 +466,7 @@ FastAPI (Uvicorn):
 (apk_env) PS C:\Users\user> uvicorn main:app --host 127.0.0.1 --port 8000
 ```
 
-![image](https://hackmd.io/_uploads/SJ5pgW46gg.png)
-
-![image](https://hackmd.io/_uploads/BykZZWEpgx.png)
+<img width="1714" height="559" alt="image" src="https://github.com/user-attachments/assets/2398b6cb-ff75-44de-a3da-8d4af3315c9a" />
 
 
 **最終解決方案：簡化架構**
@@ -541,7 +540,8 @@ A: 這個新架構移除了「Service Binding」這個中間層。現在的流�
 
 存取 https://apk-packing-automation-platform.pages.dev/
 
-![image](https://hackmd.io/_uploads/BJDKxWETgg.png)
+<img width="1150" height="895" alt="image" src="https://github.com/user-attachments/assets/7045dbd1-142f-4741-83a1-68b06c0be765" />
+
 
 ------
 ### 平台說明
