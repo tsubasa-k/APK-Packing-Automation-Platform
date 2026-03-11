@@ -66,27 +66,28 @@ const App: React.FC = () => {
       body: formData,
     });
 
-    // 先檢查 HTTP 狀態碼
+    // 1. 取得原始回應文字 (這會消耗掉 stream)
+    const responseText = await response.text();
+
     if (!response.ok) {
       let errorMsg = `上傳失敗 (錯誤碼: ${response.status})`;
       try {
-        // 嘗試解析後端 FastAPI 傳回的 JSON 錯誤
-        const errorData = await response.json();
+        // 2. 嘗試從剛剛拿到的文字解析 JSON
+        const errorData = JSON.parse(responseText);
         errorMsg = errorData.detail || errorMsg;
       } catch (e) {
-        // 如果不是 JSON (例如 Cloudflare 的純文字錯誤)，則讀取文字內容
-        const textError = await response.text();
-        errorMsg = textError || errorMsg;
+        // 3. 如果解析 JSON 失敗，就直接顯示原始文字 (可能是 Cloudflare 的錯誤訊息)
+        errorMsg = responseText || errorMsg;
       }
       throw new Error(errorMsg);
     }
 
-    const result = await response.json();
+    // 4. 成功情況下，手動解析 JSON
+    const result = JSON.parse(responseText);
     setTaskId(result.task_id);
 
   } catch (error) {
     setProcessState(ProcessStatus.ERROR);
-    // 確保顯示最直觀的錯誤文字
     setErrorMessage(error instanceof Error ? error.message : '連線至後端時發生未知錯誤');
   }
 };
@@ -110,32 +111,33 @@ const App: React.FC = () => {
         return;
       }
   
-      // 在 useEffect 的 pollStatus 內
       const pollStatus = async () => {
-        try {
-          const response = await fetch(`/api/status/${taskId}`);
+      try {
+        const response = await fetch(`/api/status/${taskId}`);
+        
+        // 取得文字內容
+        const responseText = await response.text();
+    
+        if (!response.ok) {
+          if (response.status === 404) return; 
           
-          if (!response.ok) {
-            if (response.status === 404) return; 
-            
-            let errorMsg = '無法取得處理狀態';
-            try {
-              const errorData = await response.json();
-              errorMsg = errorData.detail || errorMsg;
-            } catch (e) {
-              const textError = await response.text();
-              errorMsg = textError || errorMsg;
-            }
-            throw new Error(errorMsg);
+          let errorMsg = '無法取得處理狀態';
+          try {
+            const errorData = JSON.parse(responseText);
+            errorMsg = errorData.detail || errorMsg;
+          } catch (e) {
+            errorMsg = responseText || errorMsg;
           }
-          
-          const data = await response.json();
-          // ... 後續更新狀態的邏輯保持不變
-        } catch (error) {
-          setProcessState(ProcessStatus.ERROR);
-          setErrorMessage(error instanceof Error ? error.message : '查詢狀態時發生錯誤');
+          throw new Error(errorMsg);
         }
-      };
+        
+        const data = JSON.parse(responseText);
+        // ... 更新狀態邏輯
+      } catch (error) {
+        setProcessState(ProcessStatus.ERROR);
+        setErrorMessage(error instanceof Error ? error.message : '查詢狀態時發生錯誤');
+      }
+    };
   
       // 啟動第一次輪詢
       const timer = setTimeout(pollStatus, 2000);
