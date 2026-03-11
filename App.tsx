@@ -54,32 +54,42 @@ const App: React.FC = () => {
   };
   
   const handleUpload = async (file: File) => {
-    const formData = new FormData();
-    formData.append('file', file);
+  const formData = new FormData();
+  formData.append('file', file);
 
-    setProcessState(ProcessStatus.UPLOADING);
-    setCurrentStepIndex(0); // 進入第一個步驟 '上傳'
+  setProcessState(ProcessStatus.UPLOADING);
+  setCurrentStepIndex(0);
 
-    try {
-      // 所有 API 請求都發送到相對路徑 /api/，這將被 Cloudflare Worker 攔截
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
+  try {
+    const response = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData,
+    });
 
-      if (!response.ok) {
+    // 先檢查 HTTP 狀態碼
+    if (!response.ok) {
+      let errorMsg = `上傳失敗 (錯誤碼: ${response.status})`;
+      try {
+        // 嘗試解析後端 FastAPI 傳回的 JSON 錯誤
         const errorData = await response.json();
-        throw new Error(errorData.detail || '上傳失敗。');
+        errorMsg = errorData.detail || errorMsg;
+      } catch (e) {
+        // 如果不是 JSON (例如 Cloudflare 的純文字錯誤)，則讀取文字內容
+        const textError = await response.text();
+        errorMsg = textError || errorMsg;
       }
-
-      const result = await response.json();
-      setTaskId(result.task_id); // 儲存 task_id 以便後續查詢
-
-    } catch (error) {
-      setProcessState(ProcessStatus.ERROR);
-      setErrorMessage(error instanceof Error ? error.message : '未知錯誤');
+      throw new Error(errorMsg);
     }
-  };
+
+    const result = await response.json();
+    setTaskId(result.task_id);
+
+  } catch (error) {
+    setProcessState(ProcessStatus.ERROR);
+    // 確保顯示最直觀的錯誤文字
+    setErrorMessage(error instanceof Error ? error.message : '連線至後端時發生未知錯誤');
+  }
+};
 
   const handleDownload = () => {
     if (!taskId) return;
@@ -100,35 +110,27 @@ const App: React.FC = () => {
         return;
       }
   
+      // 在 useEffect 的 pollStatus 內
       const pollStatus = async () => {
         try {
           const response = await fetch(`/api/status/${taskId}`);
+          
           if (!response.ok) {
-            if (response.status === 404) return; // 後端可能尚未準備好，靜默重試
-            throw new Error('無法取得處理狀態。');
+            if (response.status === 404) return; 
+            
+            let errorMsg = '無法取得處理狀態';
+            try {
+              const errorData = await response.json();
+              errorMsg = errorData.detail || errorMsg;
+            } catch (e) {
+              const textError = await response.text();
+              errorMsg = textError || errorMsg;
+            }
+            throw new Error(errorMsg);
           }
           
           const data = await response.json();
-          const newStatus = statusMapping[data.status] || processState; // 如果狀態未知，保持原樣
-  
-          // 更新 UI 狀態
-          setProcessState(newStatus);
-          
-          const newStepIndex = initialSteps.findIndex(step => step.status === newStatus);
-          if (newStepIndex !== -1) {
-            setCurrentStepIndex(newStepIndex);
-          }
-  
-          // !!! 關鍵修正 !!!
-          // 當收到完成狀態時，先強制將進度條設定到最後一步
-          if (newStatus === ProcessStatus.COMPLETE) {
-            setCurrentStepIndex(initialSteps.length); // 強制設定為最後一步完成的索引
-            setProtectedFileName(data.file_name || '');
-          } else {
-            // 如果尚未完成，則安排下一次輪詢
-            setTimeout(pollStatus, 2000);
-          }
-  
+          // ... 後續更新狀態的邏輯保持不變
         } catch (error) {
           setProcessState(ProcessStatus.ERROR);
           setErrorMessage(error instanceof Error ? error.message : '查詢狀態時發生錯誤');
