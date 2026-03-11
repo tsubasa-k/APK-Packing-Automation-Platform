@@ -1,4 +1,4 @@
-//App.tsx
+// App.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { ProcessStatus, ProcessStep } from './types';
 import FileUpload from './components/FileUpload';
@@ -7,18 +7,17 @@ import StatusIndicator from './components/StatusIndicator';
 import { CheckIcon } from './components/icons/CheckIcon';
 import { DownloadIcon } from './components/icons/DownloadIcon';
 
-// 狀態與後端 API 的 'status' 字串對應
+// 1. 狀態與後端 API 的 'status' 字串對應 (需與 pack_apk.py 的 update_status 一致)
 const statusMapping: { [key: string]: ProcessStatus } = {
   uploading: ProcessStatus.UPLOADING,
   protecting: ProcessStatus.PROTECTING,
-  aligning: ProcessStatus.ALIGNING, // 假設後端也會回報這些狀態
-  signing: ProcessStatus.SIGNING,   // 假設後端也會回報這些狀態
+  aligning: ProcessStatus.ALIGNING,
+  signing: ProcessStatus.SIGNING,
   complete: ProcessStatus.COMPLETE,
   error: ProcessStatus.ERROR,
 };
 
 const initialSteps: ProcessStep[] = [
-  // 我們可以保留這個結構來驅動 UI，但實際進度由後端決定
   { name: '上傳 APK', status: ProcessStatus.UPLOADING, duration: 0 },
   { name: '加殼保護', status: ProcessStatus.PROTECTING, duration: 0 },
   { name: '對齊封裝', status: ProcessStatus.ALIGNING, duration: 0 },
@@ -46,7 +45,6 @@ const App: React.FC = () => {
     if (file && file.name.endsWith('.apk')) {
       setApkFile(file);
       setErrorMessage('');
-      // 選擇檔案後立即開始上傳
       handleUpload(file);
     } else {
       setErrorMessage('檔案類型無效，請上傳 .apk 檔案。');
@@ -54,47 +52,43 @@ const App: React.FC = () => {
   };
   
   const handleUpload = async (file: File) => {
-  const formData = new FormData();
-  formData.append('file', file);
+    const formData = new FormData();
+    formData.append('file', file);
 
-  setProcessState(ProcessStatus.UPLOADING);
-  setCurrentStepIndex(0);
+    setProcessState(ProcessStatus.UPLOADING);
+    setCurrentStepIndex(0);
 
-  try {
-    const response = await fetch('/api/upload', {
-      method: 'POST',
-      body: formData,
-    });
+    try {
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
 
-    // 1. 取得原始回應文字 (這會消耗掉 stream)
-    const responseText = await response.text();
+      // 使用 text() 一次性讀取，避免 Stream already read 錯誤
+      const responseText = await response.text();
 
-    if (!response.ok) {
-      let errorMsg = `上傳失敗 (錯誤碼: ${response.status})`;
-      try {
-        // 2. 嘗試從剛剛拿到的文字解析 JSON
-        const errorData = JSON.parse(responseText);
-        errorMsg = errorData.detail || errorMsg;
-      } catch (e) {
-        // 3. 如果解析 JSON 失敗，就直接顯示原始文字 (可能是 Cloudflare 的錯誤訊息)
-        errorMsg = responseText || errorMsg;
+      if (!response.ok) {
+        let errorMsg = `上傳失敗 (錯誤碼: ${response.status})`;
+        try {
+          const errorData = JSON.parse(responseText);
+          errorMsg = errorData.detail || errorMsg;
+        } catch (e) {
+          errorMsg = responseText || errorMsg;
+        }
+        throw new Error(errorMsg);
       }
-      throw new Error(errorMsg);
+
+      const result = JSON.parse(responseText);
+      setTaskId(result.task_id);
+
+    } catch (error) {
+      setProcessState(ProcessStatus.ERROR);
+      setErrorMessage(error instanceof Error ? error.message : '連線至後端時發生未知錯誤');
     }
-
-    // 4. 成功情況下，手動解析 JSON
-    const result = JSON.parse(responseText);
-    setTaskId(result.task_id);
-
-  } catch (error) {
-    setProcessState(ProcessStatus.ERROR);
-    setErrorMessage(error instanceof Error ? error.message : '連線至後端時發生未知錯誤');
-  }
-};
+  };
 
   const handleDownload = () => {
     if (!taskId) return;
-    // 直接建立一個指向下載端點的連結
     const link = document.createElement('a');
     link.href = `/api/download/${taskId}`;
     link.setAttribute('download', protectedFileName);
@@ -103,60 +97,55 @@ const App: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  // 在 App.tsx 中找到 useEffect hook，並用以下程式碼取代
-
   useEffect(() => {
-  if (!taskId || processState === ProcessStatus.COMPLETE || processState === ProcessStatus.ERROR) {
-    return;
-  }
-
-  const pollStatus = async () => {
-    try {
-      const response = await fetch(`/api/status/${taskId}`);
-      const responseText = await response.text();
-
-      if (!response.ok) {
-        if (response.status === 404) return;
-        throw new Error(responseText || '無法取得處理狀態');
-      }
-
-      const data = JSON.parse(responseText);
-      // 關鍵：從後端獲取原始狀態字串並轉為前端 Enum
-      const newStatus = statusMapping[data.status];
-
-      if (newStatus) {
-        setProcessState(newStatus);
-        
-        // 尋找對應的步驟索引
-        const newStepIndex = initialSteps.findIndex(step => step.status === newStatus);
-        if (newStepIndex !== -1) {
-          setCurrentStepIndex(newStepIndex);
-        }
-      }
-
-      // 檢查是否完成
-      if (data.status === 'complete') {
-        setProcessState(ProcessStatus.COMPLETE);
-        setCurrentStepIndex(initialSteps.length); // 讓所有步驟變綠色
-        setProtectedFileName(data.file_name || '');
-      } else if (data.status === 'error') {
-        setProcessState(ProcessStatus.ERROR);
-        setErrorMessage(data.message || '處理時發生錯誤');
-      } else {
-        // 只要不是結束狀態，2秒後再次查詢
-        setTimeout(pollStatus, 2000);
-      }
-
-    } catch (error) {
-      setProcessState(ProcessStatus.ERROR);
-      setErrorMessage(error instanceof Error ? error.message : '查詢狀態時發生錯誤');
+    if (!taskId || processState === ProcessStatus.COMPLETE || processState === ProcessStatus.ERROR) {
+      return;
     }
-  };
 
-  const timer = setTimeout(pollStatus, 2000);
-  return () => clearTimeout(timer);
-}, [taskId, processState]);
+    const pollStatus = async () => {
+      try {
+        const response = await fetch(`/api/status/${taskId}`);
+        const responseText = await response.text();
 
+        if (!response.ok) {
+          if (response.status === 404) return;
+          throw new Error(responseText || '無法取得處理狀態');
+        }
+
+        const data = JSON.parse(responseText);
+        const newStatus = statusMapping[data.status];
+
+        // 更新 UI 狀態與步驟索引
+        if (newStatus) {
+          setProcessState(newStatus);
+          const newStepIndex = initialSteps.findIndex(step => step.status === newStatus);
+          if (newStepIndex !== -1) {
+            setCurrentStepIndex(newStepIndex);
+          }
+        }
+
+        // 終止條件檢查
+        if (data.status === 'complete') {
+          setProcessState(ProcessStatus.COMPLETE);
+          setCurrentStepIndex(initialSteps.length); 
+          setProtectedFileName(data.file_name || '');
+        } else if (data.status === 'error') {
+          setProcessState(ProcessStatus.ERROR);
+          setErrorMessage(data.message || '處理時發生錯誤');
+        } else {
+          // 繼續下一次輪詢
+          setTimeout(pollStatus, 2000);
+        }
+
+      } catch (error) {
+        setProcessState(ProcessStatus.ERROR);
+        setErrorMessage(error instanceof Error ? error.message : '查詢狀態時發生錯誤');
+      }
+    };
+
+    const timer = setTimeout(pollStatus, 2000);
+    return () => clearTimeout(timer);
+  }, [taskId, processState]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100 font-sans p-4">
@@ -174,11 +163,19 @@ const App: React.FC = () => {
             <FileUpload onFileSelect={handleFileSelect} errorMessage={errorMessage} />
           )}
 
-          {processState !== ProcessStatus.IDLE && processState !== ProcessStatus.COMPLETE && processState !== ProcessStatus.ERROR && (
-            <StatusIndicator status={processState} fileName={apkFile?.name} />
+          {/* 正在處理狀態 */}
+          {processState !== ProcessStatus.IDLE && 
+           processState !== ProcessStatus.COMPLETE && 
+           processState !== ProcessStatus.ERROR && (
+            <StatusIndicator 
+              status={processState} 
+              fileName={apkFile?.name} 
+              currentIndex={currentStepIndex}
+              totalSteps={initialSteps.length}
+            />
           )}
 
-          {/* 新增錯誤狀態的顯示 */}
+          {/* 錯誤顯示 */}
           {processState === ProcessStatus.ERROR && (
              <div className="text-center bg-red-50 border-2 border-dashed border-red-200 rounded-lg p-8 flex flex-col items-center justify-center space-y-4">
                <h2 className="text-2xl font-semibold text-red-800">處理失敗</h2>
@@ -192,6 +189,7 @@ const App: React.FC = () => {
              </div>
           )}
 
+          {/* 完成顯示 */}
           {processState === ProcessStatus.COMPLETE && (
              <div className="text-center bg-green-50 border-2 border-dashed border-green-200 rounded-lg p-8 flex flex-col items-center justify-center space-y-4">
               <div className="bg-green-100 rounded-full p-3">
