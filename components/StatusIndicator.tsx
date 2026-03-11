@@ -33,7 +33,7 @@ const StatusIndicator: React.FC<StatusIndicatorProps> = ({
   const percentage = totalSteps > 0 
     ? Math.max(((currentIndex + 1) / totalSteps) * 100, 10) 
     : 0;
-
+  
   return (
     <div className="text-center bg-slate-50 border-2 border-dashed border-slate-200 rounded-lg p-8 flex flex-col items-center justify-center space-y-4">
       {/* 旋轉動畫圖示 */}
