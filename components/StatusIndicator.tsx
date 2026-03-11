@@ -36,22 +36,24 @@ const StatusIndicator: React.FC<StatusIndicatorProps> = ({
 
   return (
     <div className="text-center bg-slate-50 border-2 border-dashed border-slate-200 rounded-lg p-8 flex flex-col items-center justify-center space-y-4">
-      {// 旋轉動畫圖示 }
+      {/* 旋轉動畫圖示 */}
       <SpinnerIcon className="w-10 h-10 text-blue-600" />
       
+      {/* 根據目前的狀態顯示對應訊息 */}
       <h2 className="text-xl font-semibold text-slate-800">
         {statusMessages[status] || '處理中...'}
       </h2>
       
+      {/* 顯示目前處理中的檔案名稱 */}
       {fileName && (
         <p className="text-slate-500 text-sm">
           正在處理檔案： <span className="font-medium text-slate-700">{fileName}</span>
         </p>
       )}
       
-      {//進度條外框 }
+      {/* 進度條外框 */}
       <div className="w-full bg-slate-200 rounded-full h-2.5 mt-4">
-        {// 實際進度條內容，寬度會根據 percentage 動態變化 }
+        {/* 實際進度條內容，寬度會根據 percentage 動態變化 */}
         <div 
           className="bg-blue-600 h-2.5 rounded-full transition-all duration-500 ease-out" 
           style={{ width: `${percentage}%` }}
