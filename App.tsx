@@ -106,47 +106,56 @@ const App: React.FC = () => {
   // 在 App.tsx 中找到 useEffect hook，並用以下程式碼取代
 
   useEffect(() => {
-      // 如果沒有 task_id 或任務已結束，則不執行任何操作
-      if (!taskId || processState === ProcessStatus.COMPLETE || processState === ProcessStatus.ERROR) {
-        return;
+  if (!taskId || processState === ProcessStatus.COMPLETE || processState === ProcessStatus.ERROR) {
+    return;
+  }
+
+  const pollStatus = async () => {
+    try {
+      const response = await fetch(`/api/status/${taskId}`);
+      const responseText = await response.text();
+
+      if (!response.ok) {
+        if (response.status === 404) return;
+        throw new Error(responseText || '無法取得處理狀態');
       }
-  
-      const pollStatus = async () => {
-      try {
-        const response = await fetch(`/api/status/${taskId}`);
+
+      const data = JSON.parse(responseText);
+      // 關鍵：從後端獲取原始狀態字串並轉為前端 Enum
+      const newStatus = statusMapping[data.status];
+
+      if (newStatus) {
+        setProcessState(newStatus);
         
-        // 取得文字內容
-        const responseText = await response.text();
-    
-        if (!response.ok) {
-          if (response.status === 404) return; 
-          
-          let errorMsg = '無法取得處理狀態';
-          try {
-            const errorData = JSON.parse(responseText);
-            errorMsg = errorData.detail || errorMsg;
-          } catch (e) {
-            errorMsg = responseText || errorMsg;
-          }
-          throw new Error(errorMsg);
+        // 尋找對應的步驟索引
+        const newStepIndex = initialSteps.findIndex(step => step.status === newStatus);
+        if (newStepIndex !== -1) {
+          setCurrentStepIndex(newStepIndex);
         }
-        
-        const data = JSON.parse(responseText);
-        // ... 更新狀態邏輯
-      } catch (error) {
-        setProcessState(ProcessStatus.ERROR);
-        setErrorMessage(error instanceof Error ? error.message : '查詢狀態時發生錯誤');
       }
-    };
-  
-      // 啟動第一次輪詢
-      const timer = setTimeout(pollStatus, 2000);
-  
-      // 清理函數：當元件卸載或 task_id 改變時，清除計時器
-      return () => clearTimeout(timer);
-  
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [taskId, processState]);
+
+      // 檢查是否完成
+      if (data.status === 'complete') {
+        setProcessState(ProcessStatus.COMPLETE);
+        setCurrentStepIndex(initialSteps.length); // 讓所有步驟變綠色
+        setProtectedFileName(data.file_name || '');
+      } else if (data.status === 'error') {
+        setProcessState(ProcessStatus.ERROR);
+        setErrorMessage(data.message || '處理時發生錯誤');
+      } else {
+        // 只要不是結束狀態，2秒後再次查詢
+        setTimeout(pollStatus, 2000);
+      }
+
+    } catch (error) {
+      setProcessState(ProcessStatus.ERROR);
+      setErrorMessage(error instanceof Error ? error.message : '查詢狀態時發生錯誤');
+    }
+  };
+
+  const timer = setTimeout(pollStatus, 2000);
+  return () => clearTimeout(timer);
+}, [taskId, processState]);
 
 
   return (
