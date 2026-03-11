@@ -5,6 +5,7 @@ import { SpinnerIcon } from './icons/SpinnerIcon';
 interface StatusIndicatorProps {
   status: ProcessStatus;
   fileName?: string;
+  percentage?: number; 
 }
 
 const statusMessages: Record<ProcessStatus, string> = {
@@ -30,7 +31,7 @@ const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status, fileName }) =
         </p>
       )}
        <div className="w-full bg-slate-200 rounded-full h-2.5 mt-4">
-          <div className="bg-blue-600 h-2.5 rounded-full animate-pulse" style={{ width: '100%' }}></div>
+          <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${percentage || 0}%` }}></div>
         </div>
     </div>
   );
